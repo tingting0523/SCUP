@@ -45,31 +45,44 @@ Usage
 
 # 2: GATK Calling
 ./gatk_cell.sh  
-./gatk_bulk.log   
+./gatk_bulk.sh   
 ./gatk_joint.sh
 ```
 
 2. Variant Calling
 ```bash
-# SCcaller: please change the sample_number(node3cell1) as the parameter here
+# SCcaller
 ./runSccaller_parallel.bash node3cell1
 awk 'BEGIN{FS="\t"} !/^#/ && $7=="." && $10 !~ /^0\/0/ {print}' node3cell1.vcfs > node3cell1.filter.vcf    # initial filter
 
 # LiRA
-lira setup --config config-bulk-SRR2976561.txt
-lira split --config config-bulk-SRR2976561.txt --overwrite --parallel
-lira setup --config config-SRR2976561.txt
-lira split --config config-SRR2976561.txt --overwrite
+lira setup --config config-node3cell1.txt
+lira split --config config-node3cell1.txt --chr chr12 --overwrite
+lira split --config config-node3cell1.txt --chr chr15 --overwrite
 
+# Union SCcaller and LiRA calls
+./UnionLS.bash
+./AddCallerLS.sh
 ```
 
 3. Haplotype-based phasing
 ```bash
-# Step 1: Run variant calling
-python3 variant_calling.py
+# run whatshap for bulk
+/home/singhv4/miniconda3/envs/whatshap-env/bin/whatshap phase \
+-o /analysis/tingting/Pipeline_SCUP/results/whatshap/Whatshap_phase_Pipeline_bulk.vcf \
+--reference /references/genomes/hg38/hg38_chr6_chr9_chr12_chr15.fa \
+--indels \
+/analysis/tingting/Pipeline_SCUP/results/gatk_bulk/bulk.vcf \
+/analysis/tingting/Pipeline_SCUP/bam/bulk_RG.bam
 
-# Step 2: Evaluate results
-python3 evaluate.py
+# run whatshap for single cells
+/home/singhv4/miniconda3/envs/whatshap-env/bin/whatshap phase \
+-o /analysis/tingting/Pipeline_SCUP/results/whatshap/Whatshap_phase_Pipeline_node6cell1.vcf \
+--reference /references/genomes/hg38/hg38_chr6_chr9_chr12_chr15.fa \
+--indels \
+/analysis/tingting/Pipeline_SCUP/results/UnionLS/node6cell1_mergedHT_LS.final.vcf.gz \
+/analysis/tingting/Pipeline_SCUP/bam/cells/node6cell1_RG.bam
+
 ```
 
 4. Joint filtering
